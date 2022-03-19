@@ -131,9 +131,7 @@ void sndbuf_dma(struct snd_dbuf *b, int go);
 int sndbuf_dmaptr(struct snd_dbuf *b);
 void sndbuf_dmabounce(struct snd_dbuf *b);
 
-#ifdef OSSV4_EXPERIMENT
 void sndbuf_getpeaks(struct snd_dbuf *b, int *lp, int *rp);
-#endif
 
 static inline u_int32_t
 snd_xbytes(u_int32_t v, u_int32_t from, u_int32_t to)

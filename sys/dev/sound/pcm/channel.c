@@ -2581,11 +2581,23 @@ chn_syncdestroy(struct pcm_channel *c)
 	return sg_id;
 }
 
-#ifdef OSSV4_EXPERIMENT
 int
 chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak)
 {
 	CHN_LOCKASSERT(c);
-	return CHANNEL_GETPEAKS(c->methods, c->devinfo, lpeak, rpeak);
+	*lpeak = c->lpeak;
+	*rpeak = c->rpeak;
+
+	int lp, rp;
+	sndbuf_getpeaks(c->bufsoft, &lp, &rp);
+
+	u_int8_t *value = (u_int8_t*)sndbuf_getbufofs(c->bufsoft, sndbuf_getreadyptr(c->bufsoft));
+	printf("%s: (%s) name: %s c->lpeak: %d; sndbuf_getpeaks: %d; value: %d\n",
+		__func__,
+		(c->flags & CHN_F_VIRTUAL) ? "virtual" : "hardware",
+		c->name,
+		c->lpeak,
+		lp,
+		*value);
+	return 0;
 }
-#endif

@@ -776,7 +776,6 @@ sndbuf_clearshadow(struct snd_dbuf *b)
 		memset(b->shadbuf, sndbuf_zerodata(b->fmt), b->sl);
 }
 
-#ifdef OSSV4_EXPERIMENT
 /**
  * @brief Return peak value from samples in buffer ready area.
  *
@@ -793,13 +792,17 @@ sndbuf_clearshadow(struct snd_dbuf *b)
 void
 sndbuf_getpeaks(struct snd_dbuf *b, int *lp, int *rp)
 {
-	u_int32_t lpeak, rpeak;
-
-	lpeak = 0;
-	rpeak = 0;
-
-	/**
-	 * @todo fill this in later
-	 */
+	unsigned int l = sndbuf_getready(b);
+	unsigned short *end = sndbuf_getbufofs(b, sndbuf_getreadyptr(b));
+	end += l;
+	unsigned short *ptr = sndbuf_getbufofs(b, sndbuf_getreadyptr(b));
+	int max = 0;
+	
+	while (ptr < end) {
+		if (*ptr > max)
+			max = *ptr;
+		ptr++;
+	}
+	*lp = max;
+	*rp = max;
 }
-#endif

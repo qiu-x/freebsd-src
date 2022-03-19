@@ -979,8 +979,13 @@ dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
 	wrch = PCM_WRCH(dev);
 
 	/* No specific channel, look into cache */
+	
+	printf("%s: Begin channel_addr: %p\n", __func__, volch);
+
 	if (volch == NULL)
 		volch = PCM_VOLCH(dev);
+
+	printf("%s: cache channel_addr: %p\n", __func__, volch);
 
 	/* Look harder */
 	if (volch == NULL) {
@@ -989,6 +994,7 @@ dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
 		else if (j == SOUND_MIXER_PCM && wrch != NULL)
 			volch = wrch;
 	}
+	printf("%s: Look harder channel_addr: %p\n", __func__, volch);
 
 	devtype = PCMDEV(dev);
 
@@ -1003,9 +1009,13 @@ dsp_ioctl_channel(struct cdev *dev, struct pcm_channel *volch, u_long cmd,
 			return (EINVAL);
 	}
 
+	printf("%s: super harder channel_addr: %p\n", __func__, volch);
+
 	/* Final validation */
 	if (volch == NULL)
 		return (EINVAL);
+
+	printf("%s: final channel_addr: %p\n", __func__, volch);
 
 	CHN_LOCK(volch);
 	if (!(volch->feederflags & (1 << FEEDER_VOLUME))) {
@@ -1176,10 +1186,10 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	if (rdch != NULL && (rdch->flags & CHN_F_DEAD))
 		rdch = NULL;
 
-	if (wrch == NULL && rdch == NULL) {
+	/* if (wrch == NULL && rdch == NULL) {
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
-	}
+	} */
 
     	switch(cmd) {
 #ifdef OLDPCM_IOCTL
@@ -2117,29 +2127,59 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	case SNDCTL_DSP_BIND_CHANNEL:		/* XXX what?!? */
 		ret = EINVAL;
 		break;
-#ifdef	OSSV4_EXPERIMENT
-	/*
-	 * XXX The following ioctls are not yet supported and just return
-	 * EINVAL.
-	 */
 	case SNDCTL_DSP_GETOPEAKS:
 	case SNDCTL_DSP_GETIPEAKS:
 		chn = (cmd == SNDCTL_DSP_GETOPEAKS) ? wrch : rdch;
-		if (chn == NULL)
+		printf("%s: try 1 channel_addr: %p\n", __func__, chn);
+
+		if (chn == NULL) {
+			struct snddev_info *d;
+			struct pcm_channel *c;
+			int unit;
+
+			unit = dev2unit(i_dev);
+			d = dsp_get_info(i_dev);
+			if (!PCM_REGISTERED(d)) {
+				chn = NULL;
+				return (EINVAL);
+			}
+			PCM_UNLOCKASSERT(d);
+
+			PCM_LOCK(d);
+			PCM_WAIT(d);
+
+			CHN_FOREACH(c, d, channels.pcm) {
+				CHN_LOCK(c);
+				if (c->unit != unit) {
+					CHN_UNLOCK(c);
+					continue;
+				}
+				chn = c;
+				CHN_UNLOCK(c);
+				break;
+			}
+			PCM_UNLOCK(d);
+
+		}
+		printf("%s: try 2 channel_addr: %p\n", __func__, chn);
+
+		if (chn == NULL) {
+			ret = EINVAL;
+			break;
+		}
+
+		oss_peaks_t *op = (oss_peaks_t *)arg;
+		int lpeak, rpeak;
+
+		CHN_LOCK(chn);
+		ret = chn_getpeaks(chn, &lpeak, &rpeak);
+		CHN_UNLOCK(chn);
+
+		if (ret == -1)
 			ret = EINVAL;
 		else {
-			oss_peaks_t *op = (oss_peaks_t *)arg;
-			int lpeak, rpeak;
-
-			CHN_LOCK(chn);
-			ret = chn_getpeaks(chn, &lpeak, &rpeak);
-			if (ret == -1)
-				ret = EINVAL;
-			else {
-				(*op)[0] = lpeak;
-				(*op)[1] = rpeak;
-			}
-			CHN_UNLOCK(chn);
+			(*op)[0] = lpeak;
+			(*op)[1] = rpeak;
 		}
 		break;
 
@@ -2147,6 +2187,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	 * XXX Once implemented, revisit this for proper cv protection
 	 *     (if necessary).
 	 */
+#ifdef	OSSV4_EXPERIMENT
 	case SNDCTL_GETLABEL:
 		ret = dsp_oss_getlabel(wrch, rdch, (oss_label_t *)arg);
 		break;

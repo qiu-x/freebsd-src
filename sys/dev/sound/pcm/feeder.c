@@ -504,6 +504,19 @@ feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u
 	} else if (l > 0)
 		sndbuf_dispose(src, buffer, l);
 
+	u_int8_t *value = (u_int8_t*)sndbuf_getbufofs(ch->bufsoft, sndbuf_getreadyptr(ch->bufsoft));
+	ch->lpeak = *value;
+	ch->rpeak = *value;
+	if (snd_verbose > 3) {
+		printf("%s: (%s) name: %s; value: %d; buf: %d\n",
+		    __func__,
+		    (ch->flags & CHN_F_VIRTUAL) ? "virtual" : "hardware",
+		    ch->name,
+		    *value,
+		    *ch->bufsoft->buf);
+	}
+	
+
 	return count;
 }
 

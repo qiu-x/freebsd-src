@@ -138,9 +138,7 @@ struct pcm_channel {
 	 * container.
 	 */
 	struct pcmchan_syncmember *sm;
-#ifdef OSSV4_EXPERIMENT
 	u_int16_t lpeak, rpeak;	/**< Peak value from 0-32767. */
-#endif
 
 	struct {
 		SLIST_HEAD(, pcm_channel) head;
@@ -313,9 +311,7 @@ int chn_syncdestroy(struct pcm_channel *c);
 
 #define CHN_GETMUTE(x, y, z)		((x)->muted[y][z])
 
-#ifdef OSSV4_EXPERIMENT
 int chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak);
-#endif
 
 #define CHN_LOCKOWNED(c)	mtx_owned((c)->lock)
 #define CHN_LOCK(c)		mtx_lock((c)->lock)
